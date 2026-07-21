@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SIMEM — Orden de Trabajo</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; color: #1a1a1a; font-size: 14px; }
+  .screen { display: none; min-height: 100vh; padding: 16px; }
+  .screen.active { display: block; }
+  .header { background: #1F497D; color: white; padding: 14px 16px; display: flex; align-items: center; gap: 12px; border-radius: 10px; margin-bottom: 20px; }
+  .header-logo { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+  .header-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+  .header-icon { font-size: 26px; }
+  .card { background: white; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .card-title { font-size: 13px; font-weight: 600; color: #1F497D; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid #e8f0fb; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; text-transform: uppercase; }
+  .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #dde3ed; border-radius: 8px; font-size: 14px; background: #f8faff; font-family: inherit; color: #1a1a1a; }
+  .field input:focus, .field textarea:focus { outline: none; border-color: #1F497D; background: white; }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn { width: 100%; padding: 13px; border-radius: 9px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: #1F497D; color: white; }
+  .btn-primary:hover { background: #17375E; }
+  .btn-secondary { background: #f0f4f8; color: #1F497D; border: 1.5px solid #1F497D; margin-top: 10px; }
+  .btn-sm { padding: 8px 14px; font-size: 13px; width: auto; border-radius: 7px; }
+
+  .search-wrap { position: relative; margin-bottom: 10px; }
+  .search-wrap input { width: 100%; padding: 13px 44px 13px 14px; border: 2px solid #dde3ed; border-radius: 9px; font-size: 15px; }
+  .search-wrap input:focus { outline: none; border-color: #1F497D; }
+  .search-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; pointer-events: none; }
+  .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1.5px solid #1F497D; border-top: none; border-radius: 0 0 9px 9px; max-height: 260px; overflow-y: auto; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .autocomplete-item { padding: 11px 14px; cursor: pointer; border-bottom: 1px solid #f0f4f8; font-size: 14px; }
+  .autocomplete-item:hover, .autocomplete-item.highlighted { background: #e8f0fb; }
+  .autocomplete-item .ac-nombre { font-weight: 600; color: #1F497D; }
+  .autocomplete-item .ac-det { font-size: 12px; color: #888; margin-top: 2px; }
+  .autocomplete-item mark { background: #fff3cd; border-radius: 2px; font-style: normal; }
+
+  .cliente-found { background: #e8f5e9; border: 1.5px solid #43a047; border-radius: 9px; padding: 14px; margin-bottom: 14px; }
+  .cliente-found .nombre { font-weight: 700; font-size: 16px; color: #1b5e20; }
+  .cliente-found .detalle { font-size: 12px; color: #388e3c; margin-top: 3px; }
+
+  .equipo-item { border: 1.5px solid #dde3ed; border-radius: 9px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s; background: white; }
+  .equipo-item:hover { border-color: #1F497D; background: #f0f6ff; }
+  .equipo-item.selected { border-color: #1F497D; background: #e8f0fb; }
+  .equipo-item .eq-marca { font-weight: 600; font-size: 14px; color: #1F497D; }
+  .equipo-item .eq-det { font-size: 12px; color: #777; margin-top: 3px; }
+
+  .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tipo-btn { padding: 14px 10px; border: 2px solid #dde3ed; border-radius: 9px; background: white; cursor: pointer; text-align: center; font-size: 13px; font-weight: 600; color: #555; transition: all 0.15s; }
+  .tipo-btn:hover { border-color: #1F497D; color: #1F497D; }
+  .tipo-btn.selected { border-color: #1F497D; background: #1F497D; color: white; }
+  .tipo-btn .tipo-icon { font-size: 22px; display: block; margin-bottom: 6px; }
+
+  .insumo-row { display: grid; grid-template-columns: 1fr 70px 80px 34px; gap: 6px; margin-bottom: 6px; align-items: center; }
+  .insumo-row input { padding: 8px 10px; border: 1.5px solid #dde3ed; border-radius: 7px; font-size: 13px; width: 100%; }
+  .del-btn { width: 30px; height: 30px; border-radius: 6px; border: none; background: #fee2e2; color: #dc2626; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+  .add-btn { background: none; border: 1.5px dashed #1F497D; border-radius: 7px; color: #1F497D; padding: 8px; width: 100%; cursor: pointer; font-size: 13px; margin-top: 4px; }
+
+  .ot-preview { background: white; border-radius: 10px; padding: 20px; font-size: 13px; }
+  .ot-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #1F497D; }
+  .ot-logo { font-size: 20px; font-weight: 900; color: #1F497D; }
+  .ot-title { font-size: 18px; font-weight: 700; color: #1F497D; text-align: center; }
+  .ot-meta { text-align: right; font-size: 12px; }
+  .ot-meta .ot-num { font-size: 15px; font-weight: 700; color: #1F497D; }
+  .ot-section { margin-bottom: 14px; }
+  .ot-section-title { background: #1F497D; color: white; padding: 5px 10px; font-weight: 600; font-size: 12px; border-radius: 4px; margin-bottom: 8px; text-transform: uppercase; }
+  .ot-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #dde3ed; border-radius: 6px; overflow: hidden; }
+  .ot-cell { padding: 6px 10px; border-bottom: 1px solid #eee; }
+  .ot-cell:nth-child(odd) { background: #f8faff; }
+  .ot-cell-label { font-size: 11px; color: #888; font-weight: 600; text-transform: uppercase; }
+  .ot-cell-value { font-size: 13px; font-weight: 500; margin-top: 1px; }
+  .ot-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .ot-table th { background: #1F497D; color: white; padding: 6px 8px; text-align: left; font-size: 11px; }
+  .ot-table td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+  .ot-table tr:nth-child(even) td { background: #f8faff; }
+  .ot-adicionales-title { background: #E8902A; color: white; padding: 5px 10px; font-weight: 600; font-size: 12px; border-radius: 4px; margin-bottom: 8px; }
+  .ot-firmas { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .firma-box { border: 1.5px solid #dde3ed; border-radius: 7px; padding: 10px; }
+  .firma-label { font-size: 11px; font-weight: 700; color: #1F497D; text-transform: uppercase; margin-bottom: 30px; }
+  .firma-line { border-top: 1px solid #555; margin-top: 8px; padding-top: 4px; font-size: 11px; color: #888; }
+  .ot-footer { background: #1F497D; color: white; text-align: center; padding: 6px; font-size: 11px; border-radius: 5px; margin-top: 14px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-alquiler { background: #e8f0fb; color: #1F497D; }
+  .badge-preventivo { background: #e8f5e9; color: #2e7d32; }
+  .badge-correctivo { background: #fff3e0; color: #e65100; }
+  .badge-adicional { background: #fef3e2; color: #E8902A; }
+  .steps { display: flex; justify-content: center; gap: 6px; margin-bottom: 18px; }
+  .step { width: 28px; height: 6px; border-radius: 3px; background: #dde3ed; }
+  .step.active { background: #1F497D; }
+  .step.done { background: #43a047; }
+  .loading { text-align: center; padding: 20px; color: #1F497D; }
+  .spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid #dde3ed; border-top-color: #1F497D; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .quien-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .quien-btn { padding: 12px 10px; border: 2px solid #dde3ed; border-radius: 9px; background: white; cursor: pointer; text-align: center; font-size: 13px; font-weight: 600; color: #555; transition: all 0.15s; }
+  .quien-btn:hover, .quien-btn.selected { border-color: #1F497D; background: #e8f0fb; color: #1F497D; }
+  @media print {
+    body { background: white; }
+    .no-print { display: none !important; }
+    #screen-preview { display: block !important; padding: 0; }
+    #screen-buscar, #screen-equipo, #screen-servicio { display: none !important; }
+  }
+  @media (min-width: 600px) {
+    body { max-width: 680px; margin: 0 auto; }
+    .tipo-grid { grid-template-columns: repeat(4, 1fr); }
+    .quien-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- PANTALLA 1 -->
+<div id="screen-buscar" class="screen active">
+  <div class="header">
+    <div class="header-icon">📋</div>
+    <div><div class="header-logo">□ SIMEM</div><div class="header-sub">Generador de Orden de Trabajo</div></div>
+  </div>
+  <div class="steps"><div class="step active"></div><div class="step"></div><div class="step"></div><div class="step"></div></div>
+
+  <div class="card">
+    <div class="card-title">¿Quién genera esta OT?</div>
+    <div class="quien-grid">
+      <button class="quien-btn" onclick="selQuien(this,'Juan Andrés')">👷 Juan Andrés</button>
+      <button class="quien-btn" onclick="selQuien(this,'Yeison')">🔧 Yeison</button>
+      <button class="quien-btn" onclick="selQuien(this,'Sebastián')">💼 Sebastián</button>
+      <button class="quien-btn" onclick="selQuien(this,'José David')">📱 José David</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Buscar cliente por nombre</div>
+    <div id="cargando-clientes" class="loading">
+      <div class="spinner"></div><div style="font-size:13px">Cargando clientes del sistema...</div>
+    </div>
+    <div class="search-wrap" id="search-wrap" style="display:none">
+      <input type="text" id="nombre-input" placeholder="Escribe el nombre del cliente..." autocomplete="off"
+             oninput="filtrarClientes(this.value)" onkeydown="navAC(event)">
+      <span class="search-icon">🔍</span>
+      <div class="autocomplete-list" id="ac-list" style="display:none"></div>
+    </div>
+    <div id="cliente-resultado"></div>
+    <div id="tipo-wrap" style="display:none;margin-top:14px">
+      <div class="card-title">Tipo de servicio</div>
+      <div class="tipo-grid">
+        <button class="tipo-btn" onclick="selTipo(this,'Alquiler planta eléctrica')"><span class="tipo-icon">⚡</span>Alquiler planta</button>
+        <button class="tipo-btn" onclick="selTipo(this,'Mantenimiento preventivo')"><span class="tipo-icon">🔧</span>Mtto. preventivo</button>
+        <button class="tipo-btn" onclick="selTipo(this,'Mantenimiento correctivo')"><span class="tipo-icon">🚨</span>Mtto. correctivo</button>
+        <button class="tipo-btn" onclick="selTipo(this,'Trabajo adicional')"><span class="tipo-icon">➕</span>Trabajo adicional</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:16px" onclick="irEquipo()" id="btn1" disabled>Seleccionar equipo →</button>
+  </div>
+</div>
+
+<!-- PANTALLA 2 -->
+<div id="screen-equipo" class="screen">
+  <div class="header"><div class="header-icon">⚙️</div><div><div class="header-logo">□ SIMEM</div><div class="header-sub" id="hdr-cli">Equipos</div></div></div>
+  <div class="steps"><div class="step done"></div><div class="step active"></div><div class="step"></div><div class="step"></div></div>
+  <div class="card">
+    <div class="card-title">Equipos del cliente</div>
+    <div id="lista-equipos"></div>
+    <button class="btn btn-primary" style="margin-top:12px" onclick="irServicio()" id="btn2" disabled>Continuar →</button>
+    <button class="btn btn-secondary" onclick="goScreen('screen-buscar')">← Volver</button>
+  </div>
+</div>
+
+<!-- PANTALLA 3 -->
+<div id="screen-servicio" class="screen">
+  <div class="header"><div class="header-icon">📝</div><div><div class="header-logo">□ SIMEM</div><div class="header-sub">Detalle del servicio</div></div></div>
+  <div class="steps"><div class="step done"></div><div class="step done"></div><div class="step active"></div><div class="step"></div></div>
+
+  <div class="card">
+    <div class="card-title">Programación</div>
+    <div class="field-row">
+      <div class="field"><label>Fecha</label><input type="date" id="ot-fecha"></div>
+      <div class="field"><label>Hora llegada</label><input type="time" id="ot-hora"></div>
+    </div>
+    <div class="field">
+      <label>Instrucciones especiales / Observaciones de acceso</label>
+      <textarea id="ot-inst" placeholder="Pedir por el administrador, acceso por portería norte, llevar EPP..."></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Insumos y materiales a llevar</div>
+    <div class="insumo-row" style="font-size:11px;font-weight:600;color:#888;text-transform:uppercase;margin-bottom:4px">
+      <span>Insumo / Material</span><span>Cant.</span><span>Unidad</span><span></span>
+    </div>
+    <div id="insumos-lista"></div>
+    <button class="add-btn" onclick="addInsumo()">+ Agregar insumo</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Actividades a realizar</div>
+    <div id="act-lista"></div>
+    <button class="add-btn" onclick="addAct()">+ Agregar actividad</button>
+  </div>
+
+  <div class="card" style="border-left:3px solid #E8902A">
+    <div class="card-title" style="color:#E8902A">Trabajos adicionales (si aplica)</div>
+    <div id="adic-lista"></div>
+    <button class="add-btn" style="border-color:#E8902A;color:#E8902A" onclick="addAdic()">+ Agregar trabajo adicional</button>
+  </div>
+
+  <button class="btn btn-primary" onclick="generarOT()">Generar Orden de Trabajo ✓</button>
+  <button class="btn btn-secondary" onclick="goScreen('screen-equipo')">← Volver</button>
+</div>
+
+<!-- PANTALLA 4 -->
+<div id="screen-preview" class="screen">
+  <div class="no-print" style="margin-bottom:14px">
+    <div class="header"><div class="header-icon">✅</div><div><div class="header-logo">□ SIMEM</div><div class="header-sub">Orden de Trabajo generada</div></div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary btn-sm" onclick="compartir()">📤 Enviar por WhatsApp</button>
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">🖨️ Imprimir / PDF</button>
+      <button class="btn btn-secondary btn-sm" onclick="nuevaOT()">+ Nueva OT</button>
+    </div>
+  </div>
+  <div class="ot-preview" id="ot-contenido"></div>
+</div>
+
+<script>
+const S = {quien:'',cliente:null,equipo:null,tipo:'',fecha:'',hora:'',inst:'',insumos:[],acts:[],adics:[],otNum:''};
+const PLANTAS_ID    = '1206Or_-AKxn_SZf-GbbN1I3qXUNk-rbkM0bKUDxds6I';
+const MOTOBOMBAS_ID = '1CXZn_WvVECAJ0gmpkK4GHNialbUfncEitTuhuNIX_BE';
+let CLIENTES = [];
+let acIdx = -1;
+
+window.addEventListener('DOMContentLoaded', cargarClientes);
+
+async function cargarClientes() {
+  try {
+    const [p, m] = await Promise.all([
+      fetchSheet(PLANTAS_ID,    'Hoja 1'),
+      fetchSheet(MOTOBOMBAS_ID, 'General'),
+    ]);
+    const mapa = {};
+    function agregar(data, origen) {
+      if (!data?.table) return;
+      const cols = data.table.cols.map(c => c.label.trim());
+      for (const row of data.table.rows||[]) {
+        const v = row.c||[];
+        const obj = {}; cols.forEach((c,i)=>{ obj[c]=v[i]?.v??v[i]?.f??''; });
+        const nombre = String(obj['CLIENTE']||'').trim();
+        if (!nombre) continue;
+        const k = nombre.toLowerCase();
+        if (!mapa[k]) mapa[k]={nombre, nit:obj['NIT']||'', equipos:[]};
+        mapa[k].equipos.push({...obj, origen});
+      }
+    }
+    agregar(p,'Planta eléctrica');
+    agregar(m,'Motobomba');
+    CLIENTES = Object.values(mapa).sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+    document.getElementById('cargando-clientes').style.display='none';
+    document.getElementById('search-wrap').style.display='block';
+  } catch(e) {
+    document.getElementById('cargando-clientes').innerHTML=`<div style="color:#e65100;font-size:13px">⚠️ Error al cargar. Verifica conexión.<br><small>${e.message}</small></div>`;
+  }
+}
+
+async function fetchSheet(id, hoja) {
+  const url=`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(hoja)}`;
+  const r=await fetch(url); const text=await r.text();
+  const m=text.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\)/);
+  if (!m) throw new Error('No se pudo leer el Sheet');
+  return JSON.parse(m[1]);
+}
+
+function filtrarClientes(q) {
+  const lista=document.getElementById('ac-list');
+  acIdx=-1; S.cliente=null;
+  document.getElementById('cliente-resultado').innerHTML='';
+  document.getElementById('tipo-wrap').style.display='none';
+  document.getElementById('btn1').disabled=true;
+  if (q.length<2){lista.style.display='none';return;}
+  const ql=q.toLowerCase();
+  const hits=CLIENTES.filter(c=>c.nombre.toLowerCase().includes(ql)).slice(0,12);
+  if (!hits.length){lista.style.display='none';return;}
+  lista.innerHTML=hits.map((c,i)=>{
+    const res=c.nombre.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),'<mark>$1</mark>');
+    return `<div class="autocomplete-item" data-i="${i}" onclick="selCliente(${i})" onmouseenter="acIdx=${i};resaltarAC()">
+      <div class="ac-nombre">${res}</div>
+      <div class="ac-det">NIT: ${c.nit||'—'} · ${c.equipos.length} equipo(s)</div>
+    </div>`;
+  }).join('');
+  lista._hits=hits; lista.style.display='block';
+}
+
+function navAC(e) {
+  const lista=document.getElementById('ac-list');
+  const items=lista.querySelectorAll('.autocomplete-item');
+  if (!items.length) return;
+  if (e.key==='ArrowDown'){acIdx=Math.min(acIdx+1,items.length-1);resaltarAC();e.preventDefault();}
+  else if (e.key==='ArrowUp'){acIdx=Math.max(acIdx-1,0);resaltarAC();e.preventDefault();}
+  else if (e.key==='Enter'&&acIdx>=0){selCliente(acIdx);e.preventDefault();}
+  else if (e.key==='Escape'){lista.style.display='none';}
+}
+function resaltarAC(){document.querySelectorAll('.autocomplete-item').forEach((el,i)=>el.classList.toggle('highlighted',i===acIdx));}
+
+function selCliente(i) {
+  const lista=document.getElementById('ac-list');
+  const c=lista._hits[i]; if (!c) return;
+  S.cliente=c;
+  document.getElementById('nombre-input').value=c.nombre;
+  lista.style.display='none';
+  document.getElementById('cliente-resultado').innerHTML=`
+    <div class="cliente-found">
+      <div class="nombre">✓ ${c.nombre}</div>
+      <div class="detalle">NIT: ${c.nit||'—'} · ${c.equipos.length} equipo(s)</div>
+    </div>`;
+  document.getElementById('tipo-wrap').style.display='block';
+  checkStep1();
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#search-wrap'))document.getElementById('ac-list').style.display='none';});
+
+function selQuien(btn,n){document.querySelectorAll('.quien-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');S.quien=n;checkStep1();}
+function selTipo(btn,t){document.querySelectorAll('.tipo-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');S.tipo=t;checkStep1();}
+function checkStep1(){document.getElementById('btn1').disabled=!(S.quien&&S.cliente&&S.tipo);}
+
+function irEquipo() {
+  if (!S.cliente) return;
+  document.getElementById('hdr-cli').textContent=S.cliente.nombre;
+  const eqs=S.cliente.equipos;
+  if (eqs.length===1){S.equipo=eqs[0];irServicio();return;}
+  document.getElementById('lista-equipos').innerHTML=eqs.map((eq,i)=>{
+    const marca=eq['MARCA EQUIPO']||eq['MARCA MOTOR - B1']||'';
+    const modelo=eq['MODELO']||eq['MODELO BOMBA/MOTOR - B1']||'';
+    const serie=eq['SERIE EQUIPO']||eq['SERIE BOMBA/MOTOR - B1']||'';
+    const kva=eq['POTENCIA (KW)']||eq['POTENCIA (HP) - B1']||'';
+    return `<div class="equipo-item" onclick="selEq(this,${i})">
+      <div class="eq-marca">${eq.origen} · ${marca} ${modelo}</div>
+      <div class="eq-det">Serie: ${serie||'—'} ${kva?'· '+kva+' KVA/KW':''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('btn2').disabled=true;
+  goScreen('screen-equipo');
+}
+function selEq(el,i){document.querySelectorAll('.equipo-item').forEach(e=>e.classList.remove('selected'));el.classList.add('selected');S.equipo=S.cliente.equipos[i];document.getElementById('btn2').disabled=false;}
+
+function irServicio() {
+  const m=new Date();m.setDate(m.getDate()+1);
+  document.getElementById('ot-fecha').value=m.toISOString().split('T')[0];
+  document.getElementById('ot-hora').value='08:00';
+  S.insumos=[{n:'',c:'',u:''}]; S.acts=[{t:''}]; S.adics=[];
+  renderIns();renderActs();renderAdics();
+  goScreen('screen-servicio');
+}
+
+function renderIns(){document.getElementById('insumos-lista').innerHTML=S.insumos.map((ins,i)=>`
+  <div class="insumo-row">
+    <input placeholder="Ej: Aceite 15W40" value="${ins.n}" onchange="S.insumos[${i}].n=this.value">
+    <input placeholder="2" value="${ins.c}" type="number" min="0" onchange="S.insumos[${i}].c=this.value">
+    <input placeholder="Lts" value="${ins.u}" onchange="S.insumos[${i}].u=this.value">
+    <button class="del-btn" onclick="S.insumos.splice(${i},1);renderIns()">×</button>
+  </div>`).join('');}
+function addInsumo(){S.insumos.push({n:'',c:'',u:''});renderIns();}
+
+function renderActs(){document.getElementById('act-lista').innerHTML=S.acts.map((a,i)=>`
+  <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+    <input style="flex:1;padding:8px 10px;border:1.5px solid #dde3ed;border-radius:7px;font-size:13px"
+           placeholder="Ej: Cambio de aceite y filtros" value="${a.t}" onchange="S.acts[${i}].t=this.value">
+    <button class="del-btn" onclick="S.acts.splice(${i},1);renderActs()">×</button>
+  </div>`).join('');}
+function addAct(){S.acts.push({t:''});renderActs();}
+
+function renderAdics(){document.getElementById('adic-lista').innerHTML=S.adics.map((a,i)=>`
+  <div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">
+    <input style="flex:1;padding:8px 10px;border:1.5px solid #fbd5a5;border-radius:7px;font-size:13px;background:#fffaf5"
+           placeholder="Trabajo adicional" value="${a.t}" onchange="S.adics[${i}].t=this.value">
+    <button class="del-btn" onclick="S.adics.splice(${i},1);renderAdics()">×</button>
+  </div>`).join('');}
+function addAdic(){S.adics.push({t:''});renderAdics();}
+
+function generarOT() {
+  S.insumos=[...document.querySelectorAll('#insumos-lista .insumo-row')].map(r=>{const ins=r.querySelectorAll('input');return{n:ins[0].value,c:ins[1].value,u:ins[2].value};}).filter(i=>i.n.trim());
+  S.acts=[...document.querySelectorAll('#act-lista input')].map(i=>({t:i.value})).filter(a=>a.t.trim());
+  S.adics=[...document.querySelectorAll('#adic-lista input')].map(i=>({t:i.value})).filter(a=>a.t.trim());
+  S.fecha=document.getElementById('ot-fecha').value;
+  S.hora=document.getElementById('ot-hora').value;
+  S.inst=document.getElementById('ot-inst').value;
+  const now=new Date();
+  S.otNum=`OT-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  const eq=S.equipo||{};const cli=S.cliente;
+  const marca=eq['MARCA EQUIPO']||eq['MARCA MOTOR - B1']||'';
+  const modelo=eq['MODELO']||eq['MODELO BOMBA/MOTOR - B1']||'';
+  const serie=eq['SERIE EQUIPO']||eq['SERIE BOMBA/MOTOR - B1']||'';
+  const kva=eq['POTENCIA (KW)']||eq['POTENCIA (HP) - B1']||'';
+  const comb=eq['COMBUSTIBLE']||'';const ctrl=eq['TIPO CONTROL']||'';
+  const dir=eq['DIRECCIÓN']||'';const ciudad=eq['CIUDAD']||'';
+  const tel=eq['TEL/CEL']||'';const gps=eq['LOCALIZACIÓN GPS']||'';
+  const horario=eq['HORARIO DE ADMINISTRACIÓN ']||eq['HORARIO DE ADMINISTRACIÓN']||'';
+  const fechaStr=S.fecha?new Date(S.fecha+'T12:00:00').toLocaleDateString('es-CO',{day:'2-digit',month:'long',year:'numeric'}):'___________';
+  const bm={'Alquiler planta eléctrica':'badge-alquiler','Mantenimiento preventivo':'badge-preventivo','Mantenimiento correctivo':'badge-correctivo','Trabajo adicional':'badge-adicional'};
+  const insHTML=S.insumos.length?`<table class="ot-table"><thead><tr><th>#</th><th>Insumo / Material</th><th>Cantidad</th><th>Unidad</th></tr></thead><tbody>${S.insumos.map((i,n)=>`<tr><td>${n+1}</td><td>${i.n}</td><td>${i.c}</td><td>${i.u}</td></tr>`).join('')}</tbody></table>`:'<p style="color:#888;font-size:12px;padding:6px">Sin insumos registrados.</p>';
+  const actHTML=S.acts.length?`<table class="ot-table"><thead><tr><th>#</th><th>Actividad</th><th>Estado</th></tr></thead><tbody>${S.acts.map((a,n)=>`<tr><td>${n+1}</td><td>${a.t}</td><td>☐ Hecho &nbsp;☐ Pendiente</td></tr>`).join('')}</tbody></table>`:'<p style="color:#888;font-size:12px;padding:6px">Sin actividades.</p>';
+  const adicHTML=S.adics.length?`<div class="ot-adicionales-title">Trabajos adicionales</div><table class="ot-table"><thead><tr><th>#</th><th>Descripción</th><th>Aprobado por cliente</th></tr></thead><tbody>${S.adics.map((a,n)=>`<tr><td>${n+1}</td><td>${a.t}</td><td>☐ Sí &nbsp;☐ No</td></tr>`).join('')}</tbody></table>`:'';
+  document.getElementById('ot-contenido').innerHTML=`
+    <div class="ot-header">
+      <div><div class="ot-logo">□ SIMEM</div><div style="font-size:11px;color:#777;margin-top:2px">NIT 901.324.885-0</div></div>
+      <div class="ot-title">ORDEN DE TRABAJO</div>
+      <div class="ot-meta"><div class="ot-num">${S.otNum}</div><div style="margin-top:4px">${fechaStr}</div><div style="margin-top:2px">🕐 ${S.hora||'__:__'}</div><div style="margin-top:4px"><span class="badge ${bm[S.tipo]||'badge-alquiler'}">${S.tipo}</span></div></div>
+    </div>
+    <div style="font-size:12px;color:#555;margin-bottom:12px;padding:6px 10px;background:#f8faff;border-radius:6px;border-left:3px solid #1F497D">Generado por: <b>${S.quien}</b></div>
+    <div class="ot-section"><div class="ot-section-title">Cliente</div>
+    <div class="ot-grid">
+      <div class="ot-cell"><div class="ot-cell-label">Cliente / Empresa</div><div class="ot-cell-value">${cli.nombre}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">NIT</div><div class="ot-cell-value">${cli.nit||'—'}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">Dirección</div><div class="ot-cell-value">${dir||'—'}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">Ciudad</div><div class="ot-cell-value">${ciudad||'—'}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">Tel. / Contacto</div><div class="ot-cell-value">${tel||'—'}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">Horario acceso</div><div class="ot-cell-value">${horario||'—'}</div></div>
+      ${gps?`<div class="ot-cell" style="grid-column:span 2"><div class="ot-cell-label">GPS</div><div class="ot-cell-value">${gps}</div></div>`:''}
+    </div></div>
+    <div class="ot-section"><div class="ot-section-title">Equipo</div>
+    <div class="ot-grid">
+      <div class="ot-cell"><div class="ot-cell-label">Tipo</div><div class="ot-cell-value">${eq.origen||'—'}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">Marca</div><div class="ot-cell-value">${marca||'—'}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">Modelo</div><div class="ot-cell-value">${modelo||'—'}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">Serie</div><div class="ot-cell-value">${serie||'—'}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">Potencia</div><div class="ot-cell-value">${kva?kva+' KVA/KW':'—'}</div></div>
+      <div class="ot-cell"><div class="ot-cell-label">Combustible / Control</div><div class="ot-cell-value">${comb||ctrl||'—'}</div></div>
+    </div></div>
+    ${S.inst?`<div class="ot-section"><div class="ot-section-title">Instrucciones especiales</div><div style="padding:8px 10px;background:#f8faff;border-radius:6px;font-size:13px">${S.inst}</div></div>`:''}
+    <div class="ot-section"><div class="ot-section-title">Insumos y materiales a llevar</div>${insHTML}</div>
+    <div class="ot-section"><div class="ot-section-title">Actividades a realizar</div>${actHTML}</div>
+    ${adicHTML?`<div class="ot-section">${adicHTML}</div>`:''}
+    <div class="ot-section"><div class="ot-section-title">Observaciones y recomendaciones al cliente</div><div style="border:1px solid #dde3ed;border-radius:6px;min-height:60px;padding:8px"></div></div>
+    <div class="ot-firmas">
+      <div class="firma-box"><div class="firma-label">Técnico SIMEM</div><div class="firma-line">Nombre y firma / Cédula</div></div>
+      <div class="firma-box"><div class="firma-label">Recibido por cliente</div><div class="firma-line">Nombre, firma y cargo</div></div>
+      <div class="firma-box"><div class="firma-label">Autorizado SIMEM</div><div class="firma-line">Nombre y cargo</div></div>
+    </div>
+    <div class="ot-footer">SIMEM S.A.S. · Cra. 2A No. 6-51 Mz 5 Bod 1, La Badea, Dosquebradas, Risaralda · www.simem.com.co · 301 599 0321</div>`;
+  goScreen('screen-preview');
+}
+
+function compartir() {
+  const eq=S.equipo||{};
+  const marca=eq['MARCA EQUIPO']||eq['MARCA MOTOR - B1']||'';
+  const modelo=eq['MODELO']||eq['MODELO BOMBA/MOTOR - B1']||'';
+  const dir=eq['DIRECCIÓN']||'';const tel=eq['TEL/CEL']||'';
+  const fechaStr=S.fecha?new Date(S.fecha+'T12:00:00').toLocaleDateString('es-CO'):'';
+  const insTxt=S.insumos.length?S.insumos.map((i,n)=>`   ${n+1}. ${i.n} - ${i.c} ${i.u}`).join('\n'):'   Ninguno';
+  const actTxt=S.acts.length?S.acts.map((a,n)=>`   ${n+1}. ${a.t}`).join('\n'):'   Ninguna';
+  const adicTxt=S.adics.length?'\n\n*TRABAJOS ADICIONALES*\n'+S.adics.map((a,n)=>`   ${n+1}. ${a.t}`).join('\n'):'';
+  const msg=`*📋 ORDEN DE TRABAJO SIMEM*\n*${S.otNum}*\n\n*Tipo:* ${S.tipo}\n*Fecha:* ${fechaStr}  *Hora:* ${S.hora}\n\n*CLIENTE*\n${S.cliente.nombre}\n📍 ${dir||'—'}\n📞 ${tel||'—'}\n\n*EQUIPO*\n${eq.origen||''} · ${marca} ${modelo}\n\n*INSUMOS A LLEVAR*\n${insTxt}\n\n*ACTIVIDADES*\n${actTxt}${adicTxt}${S.inst?'\n\n*INSTRUCCIONES:* '+S.inst:''}\n\n_Generado por: ${S.quien}_`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+function nuevaOT() {
+  Object.assign(S,{quien:'',cliente:null,equipo:null,tipo:'',fecha:'',hora:'',inst:'',insumos:[],acts:[],adics:[],otNum:''});
+  document.getElementById('nombre-input').value='';
+  document.getElementById('cliente-resultado').innerHTML='';
+  document.getElementById('tipo-wrap').style.display='none';
+  document.getElementById('btn1').disabled=true;
+  document.querySelectorAll('.quien-btn,.tipo-btn').forEach(b=>b.classList.remove('selected'));
+  goScreen('screen-buscar');
+}
+
+function goScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>
