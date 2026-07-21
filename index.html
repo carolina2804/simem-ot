@@ -123,11 +123,28 @@
   <div class="card">
     <div class="card-title">¿Quién genera esta OT?</div>
     <div class="quien-grid">
-      <button class="quien-btn" onclick="selQuien(this,'Juan Andrés')">👷 Juan Andrés</button>
-      <button class="quien-btn" onclick="selQuien(this,'Yeison')">🔧 Yeison</button>
-      <button class="quien-btn" onclick="selQuien(this,'Sebastián')">💼 Sebastián</button>
-      <button class="quien-btn" onclick="selQuien(this,'José David')">📱 José David</button>
+      <button class="quien-btn" onclick="selQuienBtn(this,'Juan Andrés')">👷 Juan Andrés</button>
+      <button class="quien-btn" onclick="selQuienBtn(this,'Yeison')">🔧 Yeison</button>
+      <button class="quien-btn" onclick="selQuienBtn(this,'Sebastián')">💼 Sebastián</button>
+      <button class="quien-btn" onclick="selQuienBtn(this,'José David')">📱 José David</button>
     </div>
+    <div class="field" style="margin-top:8px;margin-bottom:0">
+      <label>O escribe tu nombre</label>
+      <input type="text" id="quien-libre" placeholder="Nombre de quien genera la OT"
+             oninput="selQuienLibre(this.value)">
+    </div>
+  </div>
+
+  <div class="card" style="border-left:3px solid #E8902A">
+    <div class="card-title" style="color:#E8902A">Cotización Siigo (opcional)</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="field" style="flex:1;margin-bottom:0">
+        <input type="text" id="cot-num" placeholder="Ej: 1939  — Si no hay, déjalo vacío"
+               oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      </div>
+      <button onclick="buscarCotizacion()" style="padding:10px 16px;border-radius:8px;border:none;background:#E8902A;color:white;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap">Buscar →</button>
+    </div>
+    <div id="cot-resultado" style="margin-top:8px"></div>
   </div>
 
   <div class="card">
@@ -316,9 +333,94 @@ function selCliente(i) {
 }
 document.addEventListener('click',e=>{if(!e.target.closest('#search-wrap'))document.getElementById('ac-list').style.display='none';});
 
-function selQuien(btn,n){document.querySelectorAll('.quien-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');S.quien=n;checkStep1();}
+function selQuienBtn(btn,n){
+  document.querySelectorAll('.quien-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('quien-libre').value='';
+  S.quien=n; checkStep1();
+}
+function selQuienLibre(val){
+  document.querySelectorAll('.quien-btn').forEach(b=>b.classList.remove('selected'));
+  S.quien=val.trim(); checkStep1();
+}
 function selTipo(btn,t){document.querySelectorAll('.tipo-btn').forEach(b=>b.classList.remove('selected'));btn.classList.add('selected');S.tipo=t;checkStep1();}
 function checkStep1(){document.getElementById('btn1').disabled=!(S.quien&&S.cliente&&S.tipo);}
+
+// ── Cotización Siigo ──────────────────────────────────────
+async function buscarCotizacion() {
+  const num = document.getElementById('cot-num').value.trim();
+  if (!num) return;
+  const res = document.getElementById('cot-resultado');
+  res.innerHTML = '<div style="font-size:13px;color:#E8902A">🔄 Conectando con Siigo...</div>';
+
+  try {
+    const SIIGO_URL = 'https://api.siigo.com';
+
+    // 1. Obtener token
+    const tokenRes = await fetch(`${SIIGO_URL}/auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Partner-Id': 'SimemAnalytics' },
+      body: JSON.stringify({ username: SIIGO_USER, access_key: SIIGO_KEY })
+    });
+    if (!tokenRes.ok) throw new Error('Error de autenticación con Siigo (' + tokenRes.status + ')');
+    const { access_token } = await tokenRes.json();
+
+    // 2. Buscar cotización por número de documento
+    const hdrs = { 'Authorization': 'Bearer ' + access_token, 'Partner-Id': 'SimemAnalytics' };
+    const qRes = await fetch(`${SIIGO_URL}/v1/quotations?document_id=${num}&page_size=25`, { headers: hdrs });
+    if (!qRes.ok) throw new Error('Error al buscar cotización (' + qRes.status + ')');
+    const qData = await qRes.json();
+
+    // Buscar la que tenga el número exacto
+    const cots = qData.results || [];
+    const cot = cots.find(c => String(c.number) === String(num) || String(c.id) === String(num));
+
+    if (!cot) throw new Error(`No se encontró la cotización número ${num}`);
+
+    mostrarCotizacion(cot, num, access_token, hdrs);
+
+  } catch(e) {
+    res.innerHTML = `<div style="font-size:12px;color:#e65100;padding:8px;background:#fff3e0;border-radius:6px;margin-top:6px">
+      ⚠️ ${e.message}
+    </div>`;
+  }
+}
+
+const SIIGO_USER = 'carolinae@simem.com.co';
+const SIIGO_KEY  = 'NTkyODIxZjctYmI0MS00ZDI3LTg0ODgtN2QwZWJmNGMxNDMzOjJxPDk1JUtvPUo=';
+
+function mostrarCotizacion(cot, num) {
+  const res = document.getElementById('cot-resultado');
+  S.cotizacion = cot;
+
+  // Extraer ítems de la cotización para pre-llenar actividades
+  const items = cot.items || [];
+  if (items.length) {
+    S.acts = items.map(it => ({ t: `${it.description || ''} (x${it.quantity || 1})` }));
+    renderActs();
+  }
+
+  // Pre-llenar búsqueda de cliente con el nombre de la cotización
+  const nombreCliente = cot.customer?.name || '';
+  if (nombreCliente) {
+    const input = document.getElementById('nombre-input');
+    if (input && document.getElementById('search-wrap').style.display !== 'none') {
+      input.value = nombreCliente;
+      filtrarClientes(nombreCliente);
+    }
+  }
+
+  const itemsHTML = items.length
+    ? items.map((it,i) => `<div style="font-size:12px;padding:3px 0;border-bottom:1px solid #e0f2e0">${i+1}. ${it.description} — x${it.quantity}</div>`).join('')
+    : '<div style="font-size:12px;color:#888">Sin ítems</div>';
+
+  res.innerHTML = `<div style="background:#e8f5e9;border:1.5px solid #43a047;border-radius:8px;padding:10px;font-size:13px;margin-top:6px">
+    <div style="font-weight:700;color:#1b5e20">✓ Cotización C-1-${num}</div>
+    <div style="color:#388e3c;margin-top:2px;margin-bottom:6px">${nombreCliente} ${cot.observations ? '· ' + cot.observations : ''}</div>
+    <div style="font-size:11px;font-weight:600;color:#2e7d32;margin-bottom:4px;text-transform:uppercase">Ítems (precargados en actividades):</div>
+    ${itemsHTML}
+  </div>`;
+}
 
 function irEquipo() {
   if (!S.cliente) return;
@@ -403,7 +505,10 @@ function generarOT() {
       <div class="ot-title">ORDEN DE TRABAJO</div>
       <div class="ot-meta"><div class="ot-num">${S.otNum}</div><div style="margin-top:4px">${fechaStr}</div><div style="margin-top:2px">🕐 ${S.hora||'__:__'}</div><div style="margin-top:4px"><span class="badge ${bm[S.tipo]||'badge-alquiler'}">${S.tipo}</span></div></div>
     </div>
-    <div style="font-size:12px;color:#555;margin-bottom:12px;padding:6px 10px;background:#f8faff;border-radius:6px;border-left:3px solid #1F497D">Generado por: <b>${S.quien}</b></div>
+    <div style="font-size:12px;color:#555;margin-bottom:12px;padding:6px 10px;background:#f8faff;border-radius:6px;border-left:3px solid #1F497D">
+      Generado por: <b>${S.quien}</b>
+      ${document.getElementById('cot-num').value ? ` &nbsp;·&nbsp; Cotización: <b>C-1-${document.getElementById('cot-num').value}</b>` : ''}
+    </div>
     <div class="ot-section"><div class="ot-section-title">Cliente</div>
     <div class="ot-grid">
       <div class="ot-cell"><div class="ot-cell-label">Cliente / Empresa</div><div class="ot-cell-value">${cli.nombre}</div></div>
@@ -453,6 +558,9 @@ function compartir() {
 function nuevaOT() {
   Object.assign(S,{quien:'',cliente:null,equipo:null,tipo:'',fecha:'',hora:'',inst:'',insumos:[],acts:[],adics:[],otNum:''});
   document.getElementById('nombre-input').value='';
+  document.getElementById('quien-libre').value='';
+  document.getElementById('cot-num').value='';
+  document.getElementById('cot-resultado').innerHTML='';
   document.getElementById('cliente-resultado').innerHTML='';
   document.getElementById('tipo-wrap').style.display='none';
   document.getElementById('btn1').disabled=true;
